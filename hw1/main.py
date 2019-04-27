@@ -1,5 +1,7 @@
 import scipy.io as scio
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
 
 training = scio.loadmat('./training.mat')
 testing = scio.loadmat('./testing.mat')
@@ -42,22 +44,24 @@ class iris_MAP:
 
         return prior
 
-    def train(self):
+    def train(self, print_info=True):
         '''
         calculate mean and standard deviation in training data for each features
         mean and std follow the order [Sepal_length, Sepal_width, Petal_length, Petal_width]
         :return: each classes' mean and std as a dictionary
         '''
         dict = {}
-        print('--- mean, standard deviation ---')
-        print('order:[Sepal_length, Sepal_width, Petal_length, Petal_width]')
+        if print_info:
+            print('--- mean, standard deviation ---')
+            print('order:[Sepal_length, Sepal_width, Petal_length, Petal_width]')
         for i in range(self.num_class):
             data = self.training_data.copy()
             extract = data[data[:, 4] == i]
             mean = np.sum(extract[:, :4], axis=0) / extract[:, :4].shape[0]
             std = (np.sum((extract[:, :4] - mean) ** 2, axis=0) / extract.shape[0]) ** 0.5
             dict[self.CLASSES[i]] = {'mean': mean, 'std': std}
-            print(self.CLASSES[i], '>>>', dict[self.CLASSES[i]])
+            if print_info:
+                print(self.CLASSES[i], '>>>', dict[self.CLASSES[i]])
         return dict
 
     def posterior(self, x):
@@ -107,10 +111,109 @@ def dataloader():
     return training_data, testing_data
 
 
-training_data, testing_data = dataloader()
-iris_map = iris_MAP(training_data=training_data, num_class=num_class, CLASSES=CLASSES, features=features)
-# iris_map.test()
-predict = np.argmax(iris_map.posterior(testing_data[:, :4]), axis=1)
-print('--- error rate ---')
-print('training error rate:', np.sum(training_data[:, 4] != predict) / training_data.shape[0])
-print('testing error rate:', np.sum(testing_data[:, 4] != predict) / testing_data.shape[0])
+def plot_hist(testing_data, predict):
+    '''
+    plot results as histogram
+    when error occur, title information will be red color
+    '''
+    for i in range(testing_data.shape[0]):
+        plt.figure(i, figsize=(7, 7))
+        plt.bar(CLASSES, height=testing_posterior[i, :])
+        if testing_data[i, 4] == predict[i]:
+            plt.title(
+                '[{}/{}] label:'.format(i + 1, testing_data.shape[0]) + CLASSES[
+                    int(testing_data[
+                            i, 4])] + '\npass!\n' + 'Sepal_length:{:.2f}, Sepal_width:{:.2f}\nPetal_length:{:.2f}, Petal_width:{:.2f}'.format(
+                    testing_data[i, 0], testing_data[i, 1], testing_data[i, 2], testing_data[i, 3]),
+                loc='left', color='green')
+        else:
+            plt.title(
+                '[{}/{}] label:'.format(i + 1, testing_data.shape[0]) + CLASSES[
+                    int(testing_data[
+                            i, 4])] + '\nerror!\n' + 'Sepal_length:{:.2f}, Sepal_width:{:.2f}\nPetal_length:{:.2f}, Petal_width:{:.2f}'.format(
+                    testing_data[i, 0], testing_data[i, 1], testing_data[i, 2], testing_data[i, 3]),
+                loc='left', color='red')
+        plt.xlabel('category')
+        plt.ylabel('probability')
+        plt.show()
+
+
+def visualize(training_data, testing_data, predict):
+    for j in range(testing_data.shape[0]):
+        plt.figure(j + 1, figsize=(16, 9))
+
+        if testing_data[j, 4] == predict[j]:
+            plt.suptitle(
+                '[{}/{}] label:'.format(j + 1, testing_data.shape[0]) + CLASSES[int(testing_data[j, 4])] + '\npass',
+                color='green')
+        else:
+            plt.suptitle(
+                '[{}/{}] label:'.format(j + 1, testing_data.shape[0]) + CLASSES[
+                    int(testing_data[j, 4])] + '\npredict:' + CLASSES[predict[j]] + '\nerror',
+                color='red')
+        for i in range(4):
+            train_info = iris_map.train(print_info=False)
+            mu_x = train_info[CLASSES[0]]['mean'][i]
+            std_x = train_info[CLASSES[0]]['std'][i]
+            mu_y = train_info[CLASSES[1]]['mean'][i]
+            std_y = train_info[CLASSES[1]]['std'][i]
+            mu_z = train_info[CLASSES[2]]['mean'][i]
+            std_z = train_info[CLASSES[2]]['std'][i]
+
+            N = 600
+            x = np.linspace(-1, 10, N)
+            y = np.linspace(-1, 10, N)
+            z = np.linspace(-1, 10, N)
+            plt.subplot(4, 4, i * 5 + 1)
+            plt.xlim(-1, 10)
+            if i == 0:
+                plt.ylabel(features[i])
+            elif i == 3:
+                plt.xlabel(features[i])
+            plt.plot(x, stats.norm.pdf(x, mu_x, std_x), color='r')
+            plt.plot(y, stats.norm.pdf(y, mu_y, std_y), color='g')
+            plt.plot(z, stats.norm.pdf(z, mu_z, std_z), color='b')
+
+            plt.plot(testing_data[j, i], stats.norm.pdf(testing_data[j, i], mu_x, std_x), marker='s', color='r')
+            plt.plot(testing_data[j, i], stats.norm.pdf(testing_data[j, i], mu_y, std_y), marker='x', color='g')
+            plt.plot(testing_data[j, i], stats.norm.pdf(testing_data[j, i], mu_z, std_z), marker='+', color='b')
+        for row in range(4):
+            for col in range(4):
+                subplot_num = 4 * row + 1 + col
+                if subplot_num == 1 or subplot_num == 6 or subplot_num == 11 or subplot_num == 16:
+                    continue
+                plt.subplot(4, 4, subplot_num)
+                if row == 3:
+                    plt.xlabel(features[col])
+                if col == 0:
+                    plt.ylabel(features[row])
+                plt.xlim(-1, 10)
+                plt.scatter(training_data[training_data[:, 4] == 0][:, col],
+                            training_data[training_data[:, 4] == 0][:, row],
+                            marker='.', color='r', label=CLASSES[0])
+                plt.scatter(training_data[training_data[:, 4] == 1][:, col],
+                            training_data[training_data[:, 4] == 1][:, row],
+                            marker='.', color='g', label=CLASSES[1])
+                plt.scatter(training_data[training_data[:, 4] == 2][:, col],
+                            training_data[training_data[:, 4] == 2][:, row],
+                            marker='.', color='b', label=CLASSES[2])
+
+                plt.scatter(testing_data[j, col], testing_data[j, row], marker='v', color='k', label='predict')
+        handles, labels = plt.gca().get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        plt.figlegend(by_label.values(), by_label.keys(), loc='right')
+        plt.show()
+
+
+if __name__ == '__main__':
+    training_data, testing_data = dataloader()
+    iris_map = iris_MAP(training_data=training_data, num_class=num_class, CLASSES=CLASSES, features=features)
+    # iris_map.test()
+    testing_posterior = iris_map.posterior(testing_data[:, :4])
+    predict = np.argmax(testing_posterior, axis=1)
+    print('--- error rate ---')
+    print('training error rate:', np.sum(training_data[:, 4] != predict) / training_data.shape[0])
+    print('testing error rate:', np.sum(testing_data[:, 4] != predict) / testing_data.shape[0])
+
+    visualize(training_data, testing_data, predict)
+    # plot_hist(testing_data, predict)
