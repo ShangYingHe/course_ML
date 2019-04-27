@@ -29,7 +29,10 @@ class iris_MAP:
         prob = a * b
         return np.prod(prob, axis=1)
 
-    def prior(self):  # calculate prior probability for each class
+    def prior(self):
+        '''
+        calculate prior probability for each class
+        '''
         prior = {}
         print('--- prior ---')
         for i in range(self.num_class):
@@ -39,7 +42,12 @@ class iris_MAP:
 
         return prior
 
-    def train(self):  # calculate mean and standard deviation in training data for each features
+    def train(self):
+        '''
+        calculate mean and standard deviation in training data for each features
+        mean and std follow the order [Sepal_length, Sepal_width, Petal_length, Petal_width]
+        :return: each classes' mean and std as a dictionary
+        '''
         dict = {}
         print('--- mean, standard deviation ---')
         print('order:[Sepal_length, Sepal_width, Petal_length, Petal_width]')
@@ -54,8 +62,9 @@ class iris_MAP:
 
     def posterior(self, x):
         '''
-        k:numbers of data
-        :param x: numpy.array(k, 4)
+        P(class k | features) = P(class k && features) / P(features)
+        N : numbers of data
+        :param x: numpy.array(N, 4)
         :return: posterior probability for each classes
         '''
         dict = self.train()
@@ -65,8 +74,8 @@ class iris_MAP:
         for i in range(self.num_class):
             likelihood[:, i] = self.likelihood(x, dict[self.CLASSES[i]]['mean'], dict[self.CLASSES[i]]['std'])
             prior_prob[0, i] = prior[self.CLASSES[i]]
-        x_prob = np.sum(likelihood * prior_prob, axis=1)
-        posterior_prob = (likelihood * prior_prob) / x_prob[:, None]
+        x_prob = np.sum(likelihood * prior_prob ** self.num_class, axis=1)
+        posterior_prob = (likelihood * prior_prob ** self.num_class) / x_prob[:, None]
         return posterior_prob
 
     def test(self):  # my validate program
