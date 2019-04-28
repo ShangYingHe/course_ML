@@ -139,6 +139,9 @@ def plot_hist(testing_data, predict):
 
 
 def visualize(training_data, testing_data, predict):
+    '''
+    visualize the results in the distribution of training data
+    '''
     for j in range(testing_data.shape[0]):
         plt.figure(j + 1, figsize=(16, 9))
 
