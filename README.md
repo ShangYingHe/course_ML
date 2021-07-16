@@ -1,2 +1,2 @@
-# Homeworks of the NTHU Machine Learning course which are implemented with python
+# NTHU Machine Learning Homeworks
 read the report and readme in each folder for more detial
